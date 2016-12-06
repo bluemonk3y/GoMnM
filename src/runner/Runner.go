@@ -32,6 +32,7 @@ func failOnError(err error, msg string) {
      - docker [start|stop] <any-name>
      - docker rm <any-name>
      How do I pipe to container stdin after docker run?
+     docker attach --detach-keys=ctrl-a c4ca4f19d4cd
  */
 func runnerListen() {
 
