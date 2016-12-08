@@ -27,7 +27,7 @@ func failOnError(err error, msg string) {
 
 /**
   * Run commands like
-     - docker run -i -t <any-name> bash
+     - docker run -id blu3monk3y/simple-ms:v1
      - pipe into docker using
      - docker [start|stop] <any-name>
      - docker rm <any-name>
@@ -68,34 +68,23 @@ func runnerListen() {
 	failOnError(err, "Failed to register a consumer")
 
 	forever := make(chan bool)
-	//docker run -tid busybox sh
-	//feb49e8e62a7e1c8b81b83be618963852403f220294c5b398bb127f49e29e344
-	//root|~/development/gocode/src/github.com/docker/docker > echo hi | docker exec -i feb49e8e62a7e1c8b81b83be618963852403f220294c5b398bb127f49e29e344 cat
-	//hi
-	//root|~/development/gocode/src/github.com/docker/docker > echo hi | docker exec -i feb49e8e62a7e1c8b81b83be618963852403f220294c5b398bb127f49e29e344 wc -l
-	//1
-	//
 
 	go func() {
+		//make(map[int]PidMap)
+		var serviceMap = make(map[string]*exec.Cmd)
 		for d := range msgs {
 			log.Printf("Received a message: %s", d.Body)
 			var cmd = string(d.Body)
+			// docker run --name SVC-ID -tid blu3monk3y/simple-ms:v1
 			if (strings.HasPrefix(cmd, "command: docker run")){
 
 				var parts = strings.SplitAfterN(cmd, " ", 3)
 				var args = strings.Fields(parts[2])
-				//var parts = strings.FieldsFunc(cmd, func)
 
 				log.Println("Docker CCC Run: PP:", args)
 
-				//@FOR /f "tokens=*" %i IN ('docker-machine env default') DO @%i
-				//cmd := exec.Command("docker", "run", "-tid", "busybox", "sh")
-				// command: docker run -tid busybox sh
 
-				cmd := exec.Command("docker", args...)//"run", "-tid", parts[4], parts[5])
-				//cmd.Stdin = strings.NewReader("some input")
-				//inPipe, _ := cmd.StdinPipe()
-				//outPipe,err := cmd.StdoutPipe()
+				cmd := exec.Command("docker", args...)
 				var stdout bytes.Buffer
 				var stderr bytes.Buffer
 				cmd.Stdout = &stdout
@@ -105,26 +94,21 @@ func runnerListen() {
 				if err != nil {
 					log.Println("Boom - bad", stderr.String())
 					log.Fatal(err)
+					// respond on error channel
 				}
-				//cmdReader := bufio.NewReader(outPipe)
 
-				//for {
+
+				log.Println(stderr.String())
 				log.Println(stdout.String())
+				var svc_name = parts[2]
+				log.Println("Adding to map:" + svc_name)
+				serviceMap[svc_name] = cmd
 
-					//time.Sleep(1)
-					//var line, err2 = cmdReader.ReadString('\n')
-					//if err2 == io.EOF {
-					//	//err := fmt.Errorf("EOF received: %q", line)
-					//	panic(err)
-					//}
-					////
-					//// read stdout - need to get the docker image instance
-					//log.Printf("STDOUT %s", line)
-				//}
-				// os. run docker container
 			}
-			if (strings.HasPrefix(cmd, "command: docker exec -i")){
-				// os. run docker container
+			if (strings.HasPrefix(cmd, "command: docker svc-input --name svc-key-id")){
+				// docker input -i svc-key-name data
+				var parts = strings.SplitAfterN(cmd, " ", 3)
+				var args = strings.Fields(parts[2])
 			}
 		}
 	}()
