@@ -11,6 +11,7 @@ import (
 	_ "io"
 	_ "time"
 	"bytes"
+	"io"
 )
 
 const (
@@ -42,6 +43,8 @@ func runnerListen() {
 	conn, err := amqp.Dial("amqp://guest:guest@" + host + ":" + port + "/")
 	defer conn.Close()
 
+	failOnError(err, "Failed to open a connect")
+
 	ch, err := conn.Channel()
 	failOnError(err, "Failed to open a channel")
 	defer ch.Close()
@@ -69,9 +72,10 @@ func runnerListen() {
 
 	forever := make(chan bool)
 
+	var dockerProcessMap = make(map[string]*exec.Cmd)
+
 	go func() {
-		//make(map[int]PidMap)
-		var serviceMap = make(map[string]*exec.Cmd)
+
 		for d := range msgs {
 			log.Printf("Received a message: %s", d.Body)
 			var cmd = string(d.Body)
@@ -81,15 +85,15 @@ func runnerListen() {
 				var parts = strings.SplitAfterN(cmd, " ", 3)
 				var args = strings.Fields(parts[2])
 
-				log.Println("Docker CCC Run: PP:", args)
-
+				log.Println("Docker Run: PP:", args)
 
 				cmd := exec.Command("docker", args...)
 				var stdout bytes.Buffer
 				var stderr bytes.Buffer
 				cmd.Stdout = &stdout
 				cmd.Stderr = &stderr
-				err = cmd.Run()
+				//err = cmd.Run()
+				err = cmd.Start()
 
 				if err != nil {
 					log.Println("Boom - bad", stderr.String())
@@ -102,13 +106,41 @@ func runnerListen() {
 				log.Println(stdout.String())
 				var svc_name = parts[2]
 				log.Println("Adding to map:" + svc_name)
-				serviceMap[svc_name] = cmd
+				dockerProcessMap[svc_name] = cmd
+
+				var stdin,_ = cmd.StdinPipe()
+				//stdin.
+				io.WriteString(stdin, " 1111\n")
+				//stdin.
 
 			}
-			if (strings.HasPrefix(cmd, "command: docker svc-input --name svc-key-id")){
+			// "command: docker svc-input --name svc-key-id"
+			if (strings.HasPrefix(cmd, "command: svc-input --name")){
+
 				// docker input -i svc-key-name data
-				var parts = strings.SplitAfterN(cmd, " ", 3)
-				var args = strings.Fields(parts[2])
+				var parts = strings.Split(cmd, " ")
+				var svcKeyId = parts[3]
+				var cmd = dockerProcessMap[svcKeyId]
+				log.Println("Going to send to stdin key,", svcKeyId, " processmap-size", len(dockerProcessMap))
+				// write to std in
+				var stdin,_ = cmd.StdinPipe()
+//				stdin.Write("Helloooo! cmd 11111:\n")
+				log.Println(stdin)
+				io.WriteString(stdin, " 22222\n")
+
+
+				//args.Stdou
+			}
+			if (strings.HasPrefix(cmd, "command: kill --name svc-key-id")){
+				var parts = strings.Split(cmd, " ")
+				var svcKeyId = parts[3]
+				var cmd = dockerProcessMap[svcKeyId]
+				log.Println("Killing", cmd)
+				var err = cmd.Process.Kill()
+				if (err != nil) {
+					log.Println("Failed to kill:", cmd)
+				}
+
 			}
 		}
 	}()

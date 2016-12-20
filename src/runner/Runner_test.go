@@ -7,6 +7,7 @@ import (
 	"github.com/streadway/amqp"
 	"log"
 	"strings"
+	"time"
 )
 
 func sendMessage(msg string) {
@@ -56,5 +57,11 @@ func TestRunner_Splitit(t *testing.T) {
 	log.Println("[", args, "]")
 }
 func TestRunner_RunsContainerCalledRunMe(t *testing.T) {
-	sendMessage("command: docker run --name runner-me -tid busybox:latest sh")
+	sendMessage("command: docker run --name SVC-TEST -tid busybox:latest sh")
+
+	// send remaining messages
+	time.Sleep(100 * time.Millisecond)
+	sendMessage("command: svc-input --name SVC-TEST BOOOM")
+
+
 }
