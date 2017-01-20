@@ -17,10 +17,10 @@
 
 
 
-## Runner process interacts with docker commandsk
+## Runner process interacts with docker commands
 
   * [DEPLOY & START in detatched mode - return ID] - >docker run --name ATTACH-ID -dit blu3monk3y/simple-ms:v1
-  Have to run intereactive and terminal ??
+  Have to run interactive and terminal ??
       * [START]- docker [start|stop] <any-name> (start a local container)
   * [Attach to send DATA] -> docker attach --detach-keys=ctrl-c ATTACH-ID
      AND

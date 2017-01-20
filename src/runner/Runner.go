@@ -10,8 +10,11 @@ import (
 	_ "fmt"
 	_ "io"
 	_ "time"
-	"bytes"
+	//"bytes"
+	//"io"
 	"io"
+	//"bytes"
+	"bytes"
 )
 
 const (
@@ -25,6 +28,13 @@ func failOnError(err error, msg string) {
 		log.Fatalf("%s: %s", msg, err)
 	}
 }
+func checkErr1(err error) {
+	if err != nil {
+		log.Println("Boom - cannot RUN:", err)
+		log.Fatal(err)
+	}
+}
+
 
 /**
   * Run commands like
@@ -35,11 +45,52 @@ func failOnError(err error, msg string) {
      How do I pipe to container stdin after docker run?
      docker attach --detach-keys=ctrl-a c4ca4f19d4cd
  */
+func handleRunCmd(cmdString string) {
+
+	var parts = strings.SplitAfterN(cmdString, " ", 3)
+	var args = strings.Fields(parts[2])
+
+	log.Println("Docker Run: PP:", args)
+
+	cmd := exec.Command("docker", args...)
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	err := cmd.Run()
+
+	if err != nil {
+		log.Println("Boom - cannot RUN:", stderr.String())
+		log.Fatal(err)
+	}
+
+	//var svc_name = args[2]
+	//dockerProcessMap[svc_name] = cmd
+
+}
+func handleStdIn(cmdString string) {
+	var parts = strings.SplitAfterN(cmdString, " ", 4)
+	var svcKeyId = parts[2]
+
+	cmd := exec.Command("docker", "attach", strings.Trim(svcKeyId, " "))
+
+	//log.Println("StdIn SVC:'", strings.Trim(svcKeyId, " "), "' msg:", parts[3])
+	var stdin,err = cmd.StdinPipe()
+	checkErr1(err)
+	defer stdin.Close()
+	cmd.Start()
+
+	_, err = io.WriteString(stdin, parts[3])
+	// need newline to flush
+	_, err = io.WriteString(stdin, "\n")
+	checkErr1(err)
+
+}
 func runnerListen() {
 
 
-	var port = "32788" // 5672
-	var host = "192.168.99.100" //"localhost"
+	var port = "32769" // 5672
+	var host = "localhost"
 	conn, err := amqp.Dial("amqp://guest:guest@" + host + ":" + port + "/")
 	defer conn.Close()
 
@@ -81,66 +132,23 @@ func runnerListen() {
 			var cmd = string(d.Body)
 			// docker run --name SVC-ID -tid blu3monk3y/simple-ms:v1
 			if (strings.HasPrefix(cmd, "command: docker run")){
-
-				var parts = strings.SplitAfterN(cmd, " ", 3)
-				var args = strings.Fields(parts[2])
-
-				log.Println("Docker Run: PP:", args)
-
-				cmd := exec.Command("docker", args...)
-				var stdout bytes.Buffer
-				var stderr bytes.Buffer
-				cmd.Stdout = &stdout
-				cmd.Stderr = &stderr
-				//err = cmd.Run()
-				err = cmd.Start()
-
-				if err != nil {
-					log.Println("Boom - bad", stderr.String())
-					log.Fatal(err)
-					// respond on error channel
-				}
-
-
-				log.Println(stderr.String())
-				log.Println(stdout.String())
-				var svc_name = parts[2]
-				log.Println("Adding to map:" + svc_name)
-				dockerProcessMap[svc_name] = cmd
-
-				var stdin,_ = cmd.StdinPipe()
-				//stdin.
-				io.WriteString(stdin, " 1111\n")
-				//stdin.
-
+				handleRunCmd(cmd)
 			}
-			// "command: docker svc-input --name svc-key-id"
-			if (strings.HasPrefix(cmd, "command: svc-input --name")){
-
-				// docker input -i svc-key-name data
-				var parts = strings.Split(cmd, " ")
-				var svcKeyId = parts[3]
-				var cmd = dockerProcessMap[svcKeyId]
-				log.Println("Going to send to stdin key,", svcKeyId, " processmap-size", len(dockerProcessMap))
-				// write to std in
-				var stdin,_ = cmd.StdinPipe()
-//				stdin.Write("Helloooo! cmd 11111:\n")
-				log.Println(stdin)
-				io.WriteString(stdin, " 22222\n")
-
-
-				//args.Stdou
+			// "command: stdin SVC-ID \"some text""
+			if (strings.HasPrefix(cmd, "command: stdin")){
+				handleStdIn(cmd)
 			}
-			if (strings.HasPrefix(cmd, "command: kill --name svc-key-id")){
-				var parts = strings.Split(cmd, " ")
-				var svcKeyId = parts[3]
+			if (strings.HasPrefix(cmd, "command: remove")){
+				var parts = strings.Fields(cmd)
+				var svcKeyId = parts[2]
 				var cmd = dockerProcessMap[svcKeyId]
-				log.Println("Killing", cmd)
-				var err = cmd.Process.Kill()
+				log.Println("Killing", svcKeyId)
+				//var err = cmd.Process.Kill()
 				if (err != nil) {
 					log.Println("Failed to kill:", cmd)
 				}
-
+				exec.Command("docker", "stop", svcKeyId).Run()
+				exec.Command("docker", "rm", svcKeyId).Run()
 			}
 		}
 	}()
@@ -152,6 +160,7 @@ func runnerListen() {
 
 func main() {
 	runnerListen()
+	//handleStdIn("command: stdin SVC-TEST q111")
 
 
 }
