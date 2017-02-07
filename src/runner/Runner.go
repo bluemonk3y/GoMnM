@@ -50,7 +50,7 @@ func handleRunCmd(cmdString string) {
 	var parts = strings.SplitAfterN(cmdString, " ", 3)
 	var args = strings.Fields(parts[2])
 
-	log.Println("Docker Run: PP:", args)
+	log.Println("Docker Run: ARGS:", args)
 
 	cmd := exec.Command("docker", args...)
 	var stdout bytes.Buffer
@@ -69,6 +69,8 @@ func handleRunCmd(cmdString string) {
 
 }
 func handleStdIn(cmdString string) {
+	log.Println("Docker StdIn: ARGS:", cmdString)
+
 	var parts = strings.SplitAfterN(cmdString, " ", 4)
 	var svcKeyId = parts[2]
 
@@ -160,6 +162,10 @@ func runnerListen() {
 
 func main() {
 	runnerListen()
+	//handleRunCmd("command: docker run --name SVC-TEST -id blu3monk3y/simple-ms:v1")
+	//handleStdIn("command: stdin SVC-TEST q111\n")
+	//handleStdIn("command: stdin SVC-TEST q222\n")
+	//handleStdIn("command: stdin SVC-TEST \"qhello 3\"\n")
 	//handleStdIn("command: stdin SVC-TEST q111")
 
 
